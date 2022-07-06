@@ -79,7 +79,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
   override fun onMapReady(googleMap: GoogleMap) {
     map = googleMap
 
-    locationProvider.liveLocations.observe(this) { latLng ->
+    locationProvider.liveLocation.observe(this) { latLng ->
       map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14f))
     }
 
