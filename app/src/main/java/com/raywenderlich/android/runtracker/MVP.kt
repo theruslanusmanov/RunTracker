@@ -26,7 +26,8 @@ class MapPresenter(private val activity: AppCompatActivity) {
     val ui = MutableLiveData(Ui.EMPTY)
 
     private val locationProvider = LocationProvider(activity)
-    private val permissionsManager = PermissionManager(activity, locationProvider)
+    private val stepCounter = StepCounter(activity)
+    private val permissionsManager = PermissionManager(activity, locationProvider, stepCounter)
 
     fun onViewCreated() {
         locationProvider.liveLocations.observe(activity) { locations ->
@@ -44,6 +45,11 @@ class MapPresenter(private val activity: AppCompatActivity) {
             val formattedDistance = activity.getString(R.string.distance_value, distance)
             ui.value = current?.copy(formattedDistance = formattedDistance)
         }
+
+        stepCounter.liveSteps.observe(activity) { steps ->
+            val current = ui.value
+            ui.value = current?.copy(formattedPace = "$steps")
+        }
     }
 
     fun onMapLoaded() {
@@ -52,9 +58,11 @@ class MapPresenter(private val activity: AppCompatActivity) {
 
     fun startTracking() {
         locationProvider.trackUser()
+        permissionsManager.requestActivityRecognition()
     }
 
     fun stopTracking() {
         locationProvider.stopTracking()
+        stepCounter.unloadStepCounter()
     }
 }
