@@ -47,6 +47,9 @@ import com.raywenderlich.android.runtracker.databinding.ActivityMapsBinding
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
+  private val locationProvider = LocationProvider(this)
+  private val permissionManager = PermissionManager(this, locationProvider)
+
   private lateinit var map: GoogleMap
   private lateinit var binding: ActivityMapsBinding
 
@@ -76,9 +79,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
   override fun onMapReady(googleMap: GoogleMap) {
     map = googleMap
 
-    // Add a marker in Sydney and move the camera
-    val sydney = LatLng(-34.0, 151.0)
-    map.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-    map.moveCamera(CameraUpdateFactory.newLatLng(sydney))
+    locationProvider.liveLocations.observe(this) { latLng ->
+      map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14f))
+    }
+
+    permissionManager.requestUserLocation()
+
+    map.uiSettings.isZoomControlsEnabled = true
   }
 }
