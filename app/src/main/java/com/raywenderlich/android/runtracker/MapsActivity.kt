@@ -34,24 +34,24 @@
 
 package com.raywenderlich.android.runtracker
 
-import androidx.appcompat.app.AppCompatActivity
+import android.annotation.SuppressLint
 import android.os.Bundle
-
+import android.os.SystemClock
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PolylineOptions
 import com.raywenderlich.android.runtracker.databinding.ActivityMapsBinding
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
-  private val locationProvider = LocationProvider(this)
-  private val permissionManager = PermissionManager(this, locationProvider)
-
   private lateinit var map: GoogleMap
   private lateinit var binding: ActivityMapsBinding
+
+  private val presenter = MapPresenter(this)
 
   override fun onCreate(savedInstanceState: Bundle?) {
     setTheme(R.style.AppTheme)
@@ -59,6 +59,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     super.onCreate(savedInstanceState)
 
     binding = ActivityMapsBinding.inflate(layoutInflater)
+    binding.btnStartStop.setOnClickListener {
+      if (binding.btnStartStop.text == getString(R.string.start_label)) {
+        startTracking()
+        binding.btnStartStop.setText(R.string.stop_label)
+      } else {
+        stopTracking()
+        binding.btnStartStop.setText(R.string.start_label)
+      }
+    }
+    presenter.onViewCreated()
     setContentView(binding.root)
 
     // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -79,12 +89,54 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
   override fun onMapReady(googleMap: GoogleMap) {
     map = googleMap
 
-    locationProvider.liveLocation.observe(this) { latLng ->
-      map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14f))
+    presenter.ui.observe(this) { ui ->
+      updateUi(ui)
     }
 
-    permissionManager.requestUserLocation()
-
+    presenter.onMapLoaded()
     map.uiSettings.isZoomControlsEnabled = true
   }
+
+
+  private fun startTracking() {
+    binding.container.txtPace.text = ""
+    binding.container.txtDistance.text = ""
+
+    binding.container.txtTime.base = SystemClock.elapsedRealtime()
+    binding.container.txtTime.start()
+
+    map.clear()
+
+    presenter.startTracking()
+  }
+
+  private fun stopTracking() {
+    presenter.stopTracking()
+    binding.container.txtTime.stop()
+  }
+
+  @SuppressLint("MissingPermission")
+  private fun updateUi(ui: Ui) {
+    if (ui.currentLocation != null && ui.currentLocation != map.cameraPosition.target) {
+      map.isMyLocationEnabled = true
+      map.animateCamera(CameraUpdateFactory.newLatLngZoom(ui.currentLocation, 14f))
+    }
+
+    binding.container.txtDistance.text = ui.formattedDistance
+    binding.container.txtPace.text = ui.formattedPace
+
+    drawRoute(ui.userPath)
+  }
+
+  private fun drawRoute(locations: List<LatLng>) {
+    val polylineOptions = PolylineOptions()
+
+    map.clear()
+
+    val points = polylineOptions.points
+    points.addAll(locations)
+
+    map.addPolyline(polylineOptions)
+  }
+
 }
